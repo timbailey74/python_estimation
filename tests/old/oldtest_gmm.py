@@ -28,3 +28,4 @@ def test_gmm_fit(k=2, x=test_generate_data()):
     for x, P in zip(g.x, g.P):
         e = ss.ellipse_sigma(x, P)
         plt.plot(e[:,0], e[:,1])
+

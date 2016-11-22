@@ -1,7 +1,11 @@
 #
 #
+import numpy as np
+import matplotlib.pyplot as plt
 
-from pyestimate.info_form import 
+import pyestimate.information_form as info
+import pyestimate.moment_form as mom
+from pyestimate.utilities import index_other
 
 def test_constrain_marginalise():
     # Check that simultaneous constrain-marginalise algorithm produces same result as
@@ -25,18 +29,17 @@ def test_constrain_marginalise():
     Hs = np.random.uniform(-3,3, (Nz,Nx))
 
     # Simultaneous constrain-marginalise
-    (yu, Yu) = information_form_constrain_and_marginalise(y, Y, R, xs, zs, Hs, iremove)
+    (yu, Yu) = info.constrain_and_marginalise(y, Y, R, xs, zs, Hs, iremove)
 
     # Compare against sequence of constrain then marginalise
     yc = y.copy()
     Yc = Y.copy()
     zz = np.zeros((zs.size, 1))
-    information_form_update(yc, Yc, zz, R, xs, zs, Hs, np.array(range(yc.size)))
-    (ym, Ym) = information_form_marginalise(yc, Yc, la.index_other(yc.size, iremove))
+    info.update_zeromean_noise(yc, Yc, zz, R, xs, zs, Hs, np.array(range(yc.size)))
+    (ym, Ym) = info.marginalise(yc, Yc, index_other(yc.size, iremove))
     print('Yu: ', 1 / np.linalg.cond(Yu))
     print('Ym: ', 1 / np.linalg.cond(Ym))
     print('Yc: ', 1 / np.linalg.cond(Yc))
-    import matplotlib.pyplot as plt
     plt.plot(ym)
     plt.plot(yu)
     plt.figure()
@@ -52,3 +55,4 @@ def test_constrain_marginalise():
 if __name__ == "__main__":
     print('test_constrain_marginalise()')
     test_constrain_marginalise()
+

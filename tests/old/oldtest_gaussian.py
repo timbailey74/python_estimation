@@ -82,3 +82,4 @@ def test_gaussian_conditional_2d(N, i=1, logw=True):
     assert is_equal(a,d) and is_equal(b,e) and is_equal(c,f)
     print('Success')
     #import IPython; IPython.embed()
+

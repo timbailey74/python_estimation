@@ -41,3 +41,4 @@ def test_general_impute(x = test_generate_data()):
     print('Mean fill value: \n{}'.format(xc))
     print('Covariance fill value: \n{}'.format(Pc))
     print('Samples of fill values:\n{}'.format(np.random.multivariate_normal(xc, Pc, 5)))
+
