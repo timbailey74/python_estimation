@@ -1,22 +1,6 @@
 #
 #
 
-# Evaluate mean of (marginalised) noise estimate (r_hat), given mean of state (x) and measurement (z).
-# This is possible because all uncertainty is due to (x, r), so their joint state is fully correlated
-# (ie., rank deficient) such that z_measured - z_predicted = 0.
-def evaluate_noise_mean(x, z, xs, zs, rs, Hx, Hr):
-    # Note: if Hr is diagonal, pass as an array; eg, np.diag(Hr)
-    # Note2: if applying to a process model, let z=x_(k+1), rs=qs, Hr=Fq
-    # Note3: if Hr is singular, then part or all of r_hat is unobservable
-    numerator = z - zs - np.dot(Hx, x-xs)
-    if len(Hr.shape) == 1:  # Hr is diagonal
-        rdiff = numerator / Hr
-    else:  # Hr is square
-        rdiff = np.dot(sci.inv(Hr), numerator)
-        #rdiff = sci.solve(Hr, numerator)  # FIXME: check that this produces same result as line above
-    return rdiff + rs
-
-
 # Linearised innovation with compensation for discontinuities in z-zpred (but not in x-xs)
 #def moment_form_innovation(x, model, norm, z, xs, Hs, idx, args):
 #    zpred = model(xs, *args) + np.dot(Hs, x[idx] - xs)
@@ -32,6 +16,7 @@ def moment_form_innovation(x, z, xs, rs, zs, Hx, Hr, idx=None, norm=None):
     if norm is not None:
         v = norm(v)
     return v
+
 
 # Kalman update; changes (x, P) in-place, so not returned by function
 def moment_form_update(x, P, v, R, Hs, idx=None, logflag=None):
@@ -102,6 +87,23 @@ def moment_form_predict_linearised(x, P, q, Q, fs, xs, qs, F, G, ifunc=None, ire
 def moment_form_predict_fast(x, P, Q, ifunc, imarg):
     pass
 # efficient implementation does clever in-place arrangement of new values
+
+
+
+# Evaluate mean of (marginalised) noise estimate (r_hat), given mean of state (x) and measurement (z).
+# This is possible because all uncertainty is due to (x, r), so their joint state is fully correlated
+# (ie., rank deficient) such that z_measured - z_predicted = 0.
+def evaluate_noise_mean(x, z, xs, zs, rs, Hx, Hr):
+    # Note: if Hr is diagonal, pass as an array; eg, np.diag(Hr)
+    # Note2: if applying to a process model, let z=x_(k+1), rs=qs, Hr=Fq
+    # Note3: if Hr is singular, then part or all of r_hat is unobservable
+    numerator = z - zs - np.dot(Hx, x-xs)
+    if len(Hr.shape) == 1:  # Hr is diagonal
+        rdiff = numerator / Hr
+    else:  # Hr is square
+        rdiff = np.dot(sci.inv(Hr), numerator)
+        #rdiff = sci.solve(Hr, numerator)  # FIXME: check that this produces same result as line above
+    return rdiff + rs
 
 
 

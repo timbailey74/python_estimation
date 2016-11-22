@@ -20,7 +20,7 @@ class GMM:
             if logw:
                 self.w = self.w - ss.log_sum(self.w)
             else:
-               self.w = self.w / sum(self.w)  # FIXME: why does /= sometimes fail??
+                self.w = self.w / sum(self.w)  # FIXME: why does /= sometimes fail??
     def copy(self):
         x = [x.copy() for x in self.x]
         P = [P.copy() for P in self.P]
