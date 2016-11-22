@@ -257,6 +257,3 @@ def importance_sampler_optimise(fun, x0, n=100, nits=5, args=()):
         wall = np.concatenate((wall, ws))
     return xall, wall, x0, P
 
-#
-# Test code ------------------------------------------------------
-#

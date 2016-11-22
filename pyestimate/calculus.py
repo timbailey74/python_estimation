@@ -179,7 +179,3 @@ def lorenz(t, state, a=10., b=8./3., c=28.):
 
 # TODO: add a test case that is dependent on t
 
-#
-# TEST code ----------------------------------------
-#
-

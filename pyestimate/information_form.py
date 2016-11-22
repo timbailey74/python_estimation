@@ -1,52 +1,57 @@
 #
 #
 
-# Simple information-form update step (ie., fusion step). Modification of
-# (y, Y) performed in-place, so they are not returned from function.
-# WARNING: Does not cater for discontinuous functions.
-def information_form_update_old(y, Y, z, R, xs, zs, Hs, idx, logflag=-1):
-    if logflag != -1:
-        v, S = information_form_innovation(y, Y, z, R, xs, zs, Hs, idx)
-        w = gauss_evaluate(v, S, logflag)
-    Ri = np.linalg.inv(R) # FIXME: Expensive if R is diagonal
-    HtRi = np.dot(Hs.T, Ri)
-    Y[np.ix_(idx,idx)] += la.force_symmetry(np.dot(HtRi, Hs)) # Note: requires np.ix_() 
-    y[idx] += np.dot(HtRi, (z - zs + np.dot(Hs,xs)))
-    if logflag != -1:
-        return w
+import numpy as np
+
+import pyestimate.moment_form as mom
+from pyestimate.utilities import triprod, force_symmetry, index_other
 
 # WARNING: Does not cater for discontinuous functions.
-def information_form_update(y, Y, z, R, xs, zs, rs, Hx, Hr, idx, logflag=-1):
-    Ra = la.triprod(Hr, R, Hr.T)
+def update(y, Y, z, R, xs, zs, rs, Hx, Hr, idx, logflag=-1):
+    Ra = triprod(Hr, R, Hr.T)
     if logflag != -1:  # FIXME: expensive information2moment conversion
         x, P = information2moment(y, Y, idx)
-        v = moment_form_innovation(x, z, xs, rs, zs, Hx, Hr)
-        S = la.triprod(Hx, P, Hx.T) + Ra
+        v = mom.innovation(x, z, xs, rs, zs, Hx, Hr)  
+        S = triprod(Hx, P, Hx.T) + Ra
         w = gauss_evaluate(v, S, logflag)
     Ri = np.linalg.inv(Ra) # FIXME: Expensive if Ra is diagonal
     HtRi = np.dot(Hx.T, Ri)
-    Y[np.ix_(idx,idx)] += la.force_symmetry(np.dot(HtRi, Hx)) # Note: requires np.ix_() to work correctly
+    Y[np.ix_(idx,idx)] += force_symmetry(np.dot(HtRi, Hx)) # Note: requires np.ix_() to work correctly
     y[idx] += np.dot(HtRi, (z - zs + np.dot(Hx,xs) + np.dot(Hr,rs)))
+    if logflag != -1:
+        return w
+
+# Simple information-form update step (ie., fusion step). Modification of
+# (y, Y) performed in-place, so they are not returned from function.
+# WARNING: Does not cater for discontinuous functions.
+def update_zeromean_noise(y, Y, z, R, xs, zs, Hs, idx, logflag=-1):
+    if logflag != -1:
+        v, S = innovation(y, Y, z, R, xs, zs, Hs, idx)
+        w = gauss_evaluate(v, S, logflag)
+    Ri = np.linalg.inv(R) # FIXME: Expensive if R is diagonal
+    HtRi = np.dot(Hs.T, Ri)
+    Y[np.ix_(idx,idx)] += force_symmetry(np.dot(HtRi, Hs)) # Note: requires np.ix_() 
+    y[idx] += np.dot(HtRi, (z - zs + np.dot(Hs,xs)))
     if logflag != -1:
         return w
 
 
 # Prediction is augment and marginalise simultaneously
 # For formulae, see Maybeck Vol1, Section 5.7, pp. 238--241
-def information_form_prediction(y, Y, q, Q, F, idx):
+def prediction(y, Y, q, Q, F, idx):
     pass
 
-def information_form_prediction_linearised(y, Y, q, Q, fs, xs, qs, F, G, idx):
+def prediction_linearised(y, Y, q, Q, fs, xs, qs, F, G, idx):
     pass
 
 # Constrain and marginalise simultaneously; we assume the constraint is z = h(x) + r = 0
-def information_form_constrain_and_marginalise(y, Y, R, xs, zs, Hs, iremove):
+def constrain_and_marginalise(y, Y, R, xs, zs, Hs, iremove):
     """
     R - additive noise
     """
     # Split state into parts we want to keep and parts we want to remove (ie., marginalise away)
     # Note: requires np.ix_() to work correctly
-    ikeep = la.index_other(y.size, iremove)
+    ikeep = index_other(y.size, iremove)
     Hr = Hs[:, iremove]
     Hk = Hs[:, ikeep]
     Ykr = Y[np.ix_(ikeep, iremove)]
@@ -64,7 +69,7 @@ def information_form_constrain_and_marginalise(y, Y, R, xs, zs, Hs, iremove):
     return (yu, Yu)
 
 # Information-form augment; linear models
-def information_form_augment(y, Y, q, Q, F, idx):
+def augment(y, Y, q, Q, F, idx):
     """
     idx indexes the subset of existing states, such that xnew = F*x[idx] + q
     """
@@ -75,11 +80,11 @@ def information_form_augment(y, Y, q, Q, F, idx):
     Yxn = np.zeros((y.size, q.size))
     Yxn[idx,:] = -FtQi
     Ya = np.vstack((np.hstack((Y, Yxn)), np.hstack((Yxn.T, Qi))))
-    Ya[np.ix_(idx,idx)] += la.force_symmetry(np.dot(FtQi, F))
+    Ya[np.ix_(idx,idx)] += force_symmetry(np.dot(FtQi, F))
     return ya, Ya
 
 # Information-form augment; nonlinear models
-def information_form_augment_linearised(y, Y, q, Q, fs, xs, qs, F, G, idx):
+def augment_linearised(y, Y, q, Q, fs, xs, qs, F, G, idx):
     """
     xs is a linearisation vector for the states x[idx]
     fs = f(xs,qs)
@@ -87,16 +92,16 @@ def information_form_augment_linearised(y, Y, q, Q, fs, xs, qs, F, G, idx):
     """
     # FIXME: Perform tests for discontinuities in x-xs (expensive) and q-qs (cheap)
     qlin = fs - np.dot(F, xs) + np.dot(G, q-qs)
-    Qlin = la.triprod(G, Q, G.T)
+    Qlin = triprod(G, Q, G.T)
     return information_form_augment(y, Y, qlin, Qlin, F, idx)
 
 # Information-form marginalisation
-def information_form_marginalise(y, Y, idx):
-    idy = la.index_other(y.size, idx)
+def marginalise(y, Y, idx):
+    idy = index_other(y.size, idx)
     F = Y[np.ix_(idx, idy)]
     B = np.linalg.inv(Y[np.ix_(idy, idy)])
     FB = np.dot(F, B)
-    Ym = Y[np.ix_(idx,idx)] - la.force_symmetry(np.dot(FB, F.T))
+    Ym = Y[np.ix_(idx,idx)] - force_symmetry(np.dot(FB, F.T))
     ym = y[idx] - np.dot(FB, y[idy])
     return ym, Ym
 
@@ -110,9 +115,9 @@ def information2moment(y, Y, idx=None):
 
 # Information-form innovation calculation; Expensive: converts to moment-form and uses its innovation
 # FIXME: this interface doesn't account for rs or Hr
-def information_form_innovation(y, Y, z, R, xs, zs, Hs, idx=None):
+def innovation(y, Y, z, R, xs, zs, Hs, idx=None):
     (x, P) = information2moment(y, Y, idx)
-    S = la.triprod(Hs, P, Hs.T) + R
+    S = triprod(Hs, P, Hs.T) + R
     zhat = zs + np.dot(Hs, x - xs)
     return (z-zhat, S)
 

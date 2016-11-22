@@ -70,3 +70,4 @@ def test_solvers(s = 0):
 
 for s in range(20):
     test_solvers(s)
+

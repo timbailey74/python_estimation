@@ -1,13 +1,14 @@
 #
 #
+import numpy as np
 
 # Linearised innovation with compensation for discontinuities in z-zpred (but not in x-xs)
-#def moment_form_innovation(x, model, norm, z, xs, Hs, idx, args):
+#def innovation(x, model, norm, z, xs, Hs, idx, args):
 #    zpred = model(xs, *args) + np.dot(Hs, x[idx] - xs)
 #    return norm(z - zpred)
 
 # Linearised innovation with compensation for discontinuities in z-zpred (but not in x-xs)
-def moment_form_innovation(x, z, xs, rs, zs, Hx, Hr, idx=None, norm=None):
+def innovation(x, z, xs, rs, zs, Hx, Hr, idx=None, norm=None):
     # Note: zs = h(xs, rs), and we assume r-prior is zero-mean
     if idx is not None:
         x = x[idx]
@@ -19,7 +20,7 @@ def moment_form_innovation(x, z, xs, rs, zs, Hx, Hr, idx=None, norm=None):
 
 
 # Kalman update; changes (x, P) in-place, so not returned by function
-def moment_form_update(x, P, v, R, Hs, idx=None, logflag=None):
+def update(x, P, v, R, Hs, idx=None, logflag=None):
     P1, P2 = (P[np.ix_(idx,idx)], P[:,idx]) if idx is not None else (P,P)
     S = la.triprod(Hs, P1, Hs.T) + R
     L = sci.cholesky(S, lower=True)
@@ -32,16 +33,16 @@ def moment_form_update(x, P, v, R, Hs, idx=None, logflag=None):
     if logflag is not None:
         return gauss_evaluate_sqrtform(vc, L, logflag)
 
-# TODO: We can do efficient sqrt-root update when R is diagonal
-def moment_form_update_diagonal_noise():
+# TODO: We can do efficient sqrt-root update when noise covariance R is diagonal
+def update_diagonal_noise():
     pass
 
 # Marginalisation; trivial
-def moment_form_marginalise(x, P, idx):
+def marginalise(x, P, idx):
     return x[idx].copy(), P[np.ix_(idx,idx)].copy()
 
 # Augmentation
-def moment_form_augment(x, P, q, Q, F, idx=None):
+def augment(x, P, q, Q, F, idx=None):
     if idx is None:
         P1, P2, x1 = P, P, x
     else:
@@ -57,7 +58,7 @@ def moment_form_augment(x, P, q, Q, F, idx=None):
     return xa, Pa
 
 # Linearised augmentation
-def moment_form_augment_linearised(x, P, q, Q, fs, xs, qs, F, G, idx=None):
+def augment_linearised(x, P, q, Q, fs, xs, qs, F, G, idx=None):
     # fs = f(xs, qs, ...)
     # FIXME: check x-xs and q-qs do not have discontinuities
     # FIXME: qlin, Qlin calculation same as for info-form; refactor
@@ -73,18 +74,18 @@ def _augment2predict(xa, Pa, x, iremove):
         ikeep = la.index_other(len(xa), iremove)
     return moment_form_marginalise(xa, Pa, ikeep)
 
-def moment_form_predict(x, P, q, Q, F, ifunc=None, iremove=None):
+def predict(x, P, q, Q, F, ifunc=None, iremove=None):
     # Slow (but simple) version; augment then marginalise
     xa, Pa = moment_form_augment(x, P, q, Q, F, ifunc)
     return _augment2predict(xa, Pa, x, iremove)
 
-def moment_form_predict_linearised(x, P, q, Q, fs, xs, qs, F, G, ifunc=None, iremove=None):
+def predict_linearised(x, P, q, Q, fs, xs, qs, F, G, ifunc=None, iremove=None):
     # Slow (but simple) version; augment then marginalise
     xa, Pa = moment_form_augment_linearised(x, P, q, Q, fs, xs, qs, F, G, ifunc)
     return _augment2predict(xa, Pa, x, iremove)
 
 # Prediction step; simultaneous augment and marginalise
-def moment_form_predict_fast(x, P, Q, ifunc, imarg):
+def predict_fast(x, P, Q, ifunc, imarg):
     pass
 # efficient implementation does clever in-place arrangement of new values
 
