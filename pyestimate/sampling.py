@@ -17,3 +17,4 @@ def gauss_samples_bounded(x, P, N, prob):
     # Solution 1: draw uniformly from unit circle, and transform according to {x,P}
     # Solution 2: draw from {x,P} and reject outliers
     pass
+

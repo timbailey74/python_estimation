@@ -76,3 +76,4 @@ def test_polysmooth():
     xs2 = poly_smooth(t, x, 1, 1)
     xs3 = poly_smooth(t, x, 3, 2)
     plt.plot(t, x, t, xs2, t, xs3)
+

@@ -20,7 +20,7 @@ class GMM:
             if logw:
                 self.w = self.w - ss.log_sum(self.w)
             else:
-                self.w = self.w / sum(self.w)  # FIXME: why does /= sometimes fail??
+               self.w = self.w / sum(self.w)  # FIXME: why does /= sometimes fail??
     def copy(self):
         x = [x.copy() for x in self.x]
         P = [P.copy() for P in self.P]
@@ -97,7 +97,6 @@ def gmm_conditional(g, vals, idx):
     xc = np.array(xc)
     wc = np.array(wc)
     return [GMM(list(xc[:,i,:]), Pc, wc[:,i], g.logw) for i in range(len(vals))]
-
 
 
 def gmm_conditional_2d(g, vals, idx=1):
@@ -344,3 +343,34 @@ def plot_2d_contours(g, w, x=None):
     pass
 
 
+#
+#
+#
+
+
+def test_generate_data():
+    s1 = np.random.multivariate_normal([0,0], [[1,0], [0,2]], 500)
+    s2 = np.random.multivariate_normal([3,4], [[3,0.5], [0.5,2]], 1000)
+    return np.vstack((s1, s2))
+
+
+def test_kmeans(N=2, x=test_generate_data()):
+    k = KMeans(N)
+    idx = k.fit_predict(x)
+    col = 'bgrkcmy'
+    for i in range(N):
+        xi = x[idx==i, :]
+        xim, Pi = ss.sample_mean_cov(xi, 0)
+        wi = xi.shape[0] / x.shape[0]
+        e = ss.ellipse_sigma(xim, Pi)
+        c = col[i%len(col)]
+        plt.plot(xi[:,0], xi[:,1], c+'.', e[:,0], e[:,1], c)
+
+
+def test_gmm_fit(k=2, x=test_generate_data()):
+    assert type(k) is int and k > 0
+    g, f = gmm_em_rnd(x, k)
+    plt.plot(x[:,0], x[:,1], '.')
+    for x, P in zip(g.x, g.P):
+        e = ss.ellipse_sigma(x, P)
+        plt.plot(e[:,0], e[:,1])

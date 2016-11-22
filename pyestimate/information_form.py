@@ -148,3 +148,4 @@ def normal_equation_solve(xs, zs, H, type=0):
         f = sci.solve_triangular(L, y, lower=True)   # or f = sp.solve(L, y), using lower = False or True makes no difference
         x = sci.solve_triangular(L.T, f, lower=False) # lower=False is default
     return x
+
