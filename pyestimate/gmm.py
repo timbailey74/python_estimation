@@ -1,5 +1,5 @@
 # FIXME: assumes x is list of row-arrays
-# However, assumes ss.gauss_evaluate() takes a matrix of column-vectors
+# However, assumes gauss_evaluate() takes a matrix of column-vectors
 
 
 import numpy as np
@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 import operator
-import sample_stats as ss
 
+import pyestimate.gaussian as gauss
+from pyestimate.utilities import log_sum
 
 class GMM:
     def __init__(self, x, P, w, logw=False, normalise=True):
@@ -18,7 +19,7 @@ class GMM:
         self._logw = logw
         if normalise:
             if logw:
-                self.w = self.w - ss.log_sum(self.w)
+                self.w = self.w - log_sum(self.w)
             else:
                 self.w = self.w / sum(self.w)  # FIXME: why does /= sometimes fail??
     def copy(self):
@@ -48,7 +49,7 @@ def default_gmm(D, k=1, random_mean=True):
 
 # Basic k-component GMM construction given a set of samples
 def nominal_gmm(x, k):
-    xm, P = ss.sample_mean_cov(x)
+    xm, P = gauss.sample_mean_cov(x)
     xs = [np.random.multivariate_normal(xm, P, 1)[0] for _ in range(k)]
     return GMM(xs, [P/k]*k, [1/k]*k)  # FIXME: is P/k a good choice kernel?
 
@@ -59,13 +60,13 @@ def gmm_evaluate_componentwise(g, x, logw=False):
     op1 = [np.exp, np.log][logw]
     op2 = [operator.mul, operator.add][logw]
     gw = g.w if g.logw == logw else op1(g.w)
-    return [op2(gw[i], ss.gauss_evaluate((x - g.x[i]).T, g.P[i], logw)) for i in range(Nc)]
+    return [op2(gw[i], gauss.gauss_evaluate((x - g.x[i]).T, g.P[i], logw)) for i in range(Nc)]
 
 
 # Evaluate GMM likelihood at each location x
 def gmm_evaluate(g, x, logw=False):
     w = gmm_evaluate_componentwise(g, x, logw)
-    return np.sum(w, 0) if not logw else ss.log_sum(w)
+    return np.sum(w, 0) if not logw else log_sum(w)
 
 
 # Deprecated
@@ -74,7 +75,7 @@ def gmm_conditional_old(g, val, idx):
     op = operator.mul if not g.logw else operator.add
     xc, Pc, wc = [], [], []
     for i in range(k):
-        x, P, w = ss.gaussian_conditional(g.x[i], g.P[i], val, idx, g.logw)
+        x, P, w = gauss.gaussian_conditional(g.x[i], g.P[i], val, idx, g.logw)
         xc.append(x)
         Pc.append(P)
         wc.append(op(g.w[i], w))
@@ -88,7 +89,7 @@ def gmm_conditional(g, vals, idx):
     op = operator.mul if not g.logw else operator.add
     xc, Pc, wc = [], [], []
     for i in range(k):
-        x, P, w = ss.gaussian_conditional(g.x[i], g.P[i], vals, idx, g.logw)
+        x, P, w = gauss.gaussian_conditional(g.x[i], g.P[i], vals, idx, g.logw)
         xc.append(x)
         Pc.append(P)
         wc.append(op(g.w[i], w))
@@ -105,7 +106,7 @@ def gmm_conditional_2d(g, vals, idx=1):
     op = operator.mul if not g.logw else operator.add
     xc, Pc, wc = [], [], []
     for i in range(k):
-        x, P, w = ss.gaussian_conditional_2d(g.x[i], g.P[i], vals, idx, g.logw)
+        x, P, w = gauss.gaussian_conditional_2d(g.x[i], g.P[i], vals, idx, g.logw)
         xc.append(x)
         Pc.append(P)
         wc.append(op(g.w[i], w))
@@ -131,7 +132,7 @@ def gmm_to_gaussian(g):
     # Normalise (ie., make sum to 1)
     w = g.w / wt
     # Compute sample mean and covariance of component means
-    x, P = ss.sample_mean_weighted(np.array(g.x), w)
+    x, P = gauss.sample_mean_weighted(np.array(g.x), w)
     # Add component covariances to sample covariance
     for wi, Pi in zip(w, g.P):
         P += wi * Pi 
@@ -174,7 +175,7 @@ def kmeans_gmm(x, k, nkm=(5,50), check_degeneracy=True):
     idx = km.fit_predict(x)
     assert max(idx) < k
     w = [sum(idx==i) for i in range(k)]
-    meancov = [ss.sample_mean_cov(x[idx==i,:], 0) for i in range(k)]
+    meancov = [gauss.sample_mean_cov(x[idx==i,:], 0) for i in range(k)]
     xm, P = zip(*meancov)
     if check_degeneracy:  # will raise an exception if any P is degenerate
         [np.linalg.cholesky(Pi) for Pi in P]
@@ -216,7 +217,7 @@ def gmm_em(g, x, n_iterations, outliers=0):
     # E-step: compute assignment likelihood
     def estep(g, x, outliers):
         w = gmm_evaluate_componentwise(g, x, g.logw)
-        wsr = np.sum(w, 0) if not g.logw else ss.log_sum(w) 
+        wsr = np.sum(w, 0) if not g.logw else log_sum(w) 
         fit = compute_fit(wsr, outliers, g.logw)
         if not g.logw:
             wsr[wsr==0] = 1  # to avoid divide-by-zero errors
@@ -232,7 +233,7 @@ def gmm_em(g, x, n_iterations, outliers=0):
         Nc = len(g.w)
         wsc = np.sum(w, 1)  
         for i in range(Nc):
-            g.x[i], g.P[i] = ss.sample_mean_weighted(x, w[i]/wsc[i])
+            g.x[i], g.P[i] = gauss.sample_mean_weighted(x, w[i]/wsc[i])
         g.w = wsc / sum(wsc)
         if g.logw:  # convert back again
             g.w = np.log(g.w)
@@ -241,7 +242,7 @@ def gmm_em(g, x, n_iterations, outliers=0):
     # EM Algorithm 
     #
     # Compute a nominal covariance for correcting degenerate cases
-    _, P = ss.sample_mean_cov(x)
+    _, P = gauss.sample_mean_cov(x)
     Pnominal = P / len(g.w)  # FIXME: is this a reasonable nominal value
     # EM iterations    
     for _ in range(n_iterations):
@@ -302,7 +303,7 @@ def set_axes_equal(ax=None):
 def plot_2d_components(g, x=None, prob=0.95):
     e = []
     for i in range(len(g.w)):
-        e.append(ss.ellipse_mass(g.x[i], g.P[i], prob))
+        e.append(gauss.ellipse_mass(g.x[i], g.P[i], prob))
         e.append([np.nan]*2)
     e = np.vstack(e)
     plt.plot(e[:,0], e[:,1])
@@ -315,10 +316,10 @@ def plot_2d_pdf(g, x=None, prob=0.95):
     assert g.logw == False
     e, h = [], []
     for i in range(len(g.w)):
-        e.append(ss.ellipse_mass(g.x[i], g.P[i], prob))
+        e.append(gauss.ellipse_mass(g.x[i], g.P[i], prob))
         e.append([np.nan]*2)
         h.append([*g.x[i], 0])
-        h.append([*g.x[i], g.w[i]*ss.gauss_evaluate(np.zeros(2), g.P[i], False)])
+        h.append([*g.x[i], g.w[i]*gauss.gauss_evaluate(np.zeros(2), g.P[i], False)])
         h.append([np.nan]*3)
     e = np.vstack(e)
     h = np.vstack(h)
@@ -342,5 +343,3 @@ def plot_2d_pdf(g, x=None, prob=0.95):
 # http://www.python-course.eu/matplotlib_contour_plot.php
 def plot_2d_contours(g, w, x=None):
     pass
-
-

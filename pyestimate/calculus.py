@@ -15,6 +15,8 @@ import scipy.linalg as scalg
 
 # Use finite differencing to compute the Jacobian of the i-th array in list (x)
 def jac_finite_diff(x, model, dmodel=None, i=0, backward=False, offset=1e-7):
+    assert type(x[i]) is not np.ndarray or \
+        issubclass(x[i].dtype.type, np.floating)
     if backward:
         offset = -offset
     if not dmodel:
@@ -34,6 +36,8 @@ def jac_finite_diff(x, model, dmodel=None, i=0, backward=False, offset=1e-7):
 
 # Use central differencing scheme to compute the Jacobian of the i-th array in list (x)
 def jac_central_diff(x, model, dmodel=None, i=0, offset=1e-7):
+    assert type(x[i]) is not np.ndarray or \
+        issubclass(x[i].dtype.type, np.floating)
     if not dmodel:
         dmodel = lambda dy: dy # nominal diff-model
     y = model(*x)
@@ -63,7 +67,7 @@ class jacobian_class:
     def __call__(self, *args):
         J, self.value = self.numjac(args, self.model, self.dmodel, self.i, *self.args, **self.kwargs)
         return J
-    # Notes:
+    # Advantages of class:
     # 1. Can access function value as: my_jacobian.value
     # 2. Can change my_jacobian.i to differentiate wrt different terms
 
@@ -80,7 +84,7 @@ def jacobian_function(model, i=0, central_diff=False, dmodel=None, *args, **kwar
 jacobian = jacobian_function
 
 #
-# Integration ------------------
+# ODE Integration ------------------
 #
 
 

@@ -1,6 +1,8 @@
 # Dodgy moving average methods, in leiu of proper estimation
 #
 
+import numpy as np
+
 # Mean and std-dev with removal of outliers greater than s-stddevs from mean. Can substitute median for mean.
 def robust_mean(x, s, mid_func=np.mean):
     i = x==x  # true for everything except nans
@@ -71,6 +73,7 @@ def poly_smooth(t, x, deg, window):
 #
 
 def test_polysmooth():
+    import matplotlib.pyplot as plt
     t = np.arange(10)
     x = np.sin(t)
     xs2 = poly_smooth(t, x, 1, 1)
